@@ -1,4 +1,6 @@
 // schema.prisma
+// Updated data model for a multi-vendor coffee shop application with Shop model.
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,166 +10,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User Service
-model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  role      Role     @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // Relationships
-  orders    Order[]  // Orders placed by the user (customer)
-  vendor    Vendor?  // Optional: if user is a vendor
-  reviews   Review[] // Reviews written by the user
-  shopStaff ShopStaff[] // Staff roles for shops
-
-  Location Location[]
-
-  Notification Notification[]
-}
-
-// Shop Service
-model Shop {
-  id           String   @id @default(uuid())
-  vendorId     String
-  name         String
-  description  String?
-  logoUrl      String?
-  contactPhone String?
-  contactEmail String?
-  location     Json?    // GeoJSON: { "type": "Point", "coordinates": [lng, lat] }
-  operatingHours Json?  // e.g., { "monday": { "open": "08:00", "close": "18:00" } }
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  // Relationships
-  vendor       Vendor   @relation(fields: [vendorId], references: [id])
-  orders       Order[]
-  staff        ShopStaff[]
-  configs      ShopConfig[]
-  reviews      Review[]
-
-  Location Location[]
-}
-
-model ShopStaff {
-  id        String   @id @default(uuid())
-  shopId    String
-  userId    String
-  role      ShopRole @default(BARISTA)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // Relationships
-  shop      Shop     @relation(fields: [shopId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-}
-
-model ShopConfig {
-  id        String   @id @default(uuid())
-  shopId    String
-  key       String   // e.g., "delivery_enabled", "reservation_enabled"
-  value     Json     // Flexible JSON for config values
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // Relationships
-  shop      Shop     @relation(fields: [shopId], references: [id])
-}
-
-enum ShopRole {
-  BARISTA
-  MANAGER
-  OWNER
-}
-
+// Enums for reusable status and role fields
 enum Role {
-  CUSTOMER
-  VENDOR
   ADMIN
-}
-
-// Vendor Service
-model Vendor {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  // Relationships
-  user         User     @relation(fields: [userId], references: [id])
-  shops        Shop[]
-  menuItems    MenuItem[]
-  inventory    Inventory[]
-  promotions   Promotion[]
-
-  Order Order[]
-}
-
-// Catalog Service
-model MenuItem {
-  id          String   @id @default(uuid())
-  vendorId    String
-  name        String
-  description String?
-  price       Float
-  category    String?
-  isAvailable Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  // Relationships
-  vendor      Vendor   @relation(fields: [vendorId], references: [id])
-  orderItems  OrderItem[]
-  inventory   Inventory[]
-}
-
-// Order Service
-model Order {
-  id          String      @id @default(uuid())
-  userId      String
-  vendorId    String
-  shopId      String
-  status      OrderStatus @default(PLACED)
-  totalAmount Float
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  // Relationships
-  user        User        @relation(fields: [userId], references: [id])
-  vendor      Vendor      @relation(fields: [vendorId], references: [id])
-  shop        Shop        @relation(fields: [shopId], references: [id])
-  orderItems  OrderItem[]
-  payment     Payment?
-}
-
-model OrderItem {
-  id         String   @id @default(uuid())
-  orderId    String
-  menuItemId String
-  quantity   Int
-  unitPrice  Float
-  // Relationships
-  order      Order    @relation(fields: [orderId], references: [id])
-  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  VENDOR
+  CUSTOMER
 }
 
 enum OrderStatus {
-  PLACED
-  PREPARING
-  READY
+  PENDING
+  CONFIRMED
+  SHIPPED
   DELIVERED
   CANCELLED
 }
 
-// Payment Service
-model Payment {
-  id          String       @id @default(uuid())
-  orderId     String       @unique
-  amount      Float
-  status      PaymentStatus @default(PENDING)
-  gateway     String
-  transactionId String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  // Relationships
-  order       Order        @relation(fields: [orderId], references: [id])
+enum DeliveryStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  FAILED
 }
 
 enum PaymentStatus {
@@ -177,90 +39,266 @@ enum PaymentStatus {
   REFUNDED
 }
 
-// Inventory Service
+enum ShopStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+// Vendor model for Vendor Management Service
+model Vendor {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String // Hashed password
+  role          Role      @default(VENDOR)
+  phone         String?
+  logoUrl       String?
+  status        String    @default("PENDING") // e.g., PENDING, ACTIVE
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  shops         Shop[]    // One-to-many with Shop
+  products      Product[] // One-to-many with Product
+  promotions    Promotion[] // One-to-many with Promotion
+}
+
+// Shop model for shop-specific operations (new)
+model Shop {
+  id            String    @id @default(uuid())
+  vendorId      String
+  name          String
+  description   String?
+  operatingHours String? // e.g., "Mon-Fri 8AM-6PM"
+  status        ShopStatus @default(PENDING)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  vendor        Vendor    @relation(fields: [vendorId], references: [id])
+  location      Location? // One-to-one with Location
+  products      Product[] // Many-to-many with Product
+  orders        Order[]   // One-to-many with Order
+  inventory     Inventory[] // One-to-many with Inventory
+  reviews       Review[]  // One-to-many with Review
+  promotions    Promotion[] // Many-to-many with Promotion
+  @@index([name]) // For search/filter
+  Analytics Analytics[]
+}
+
+// Customer model for Customer Management Service
+model Customer {
+  id            String    @id @default(uuid())
+  name          String
+  email         String    @unique
+  password      String // Hashed password
+  role          Role      @default(CUSTOMER)
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  orders        Order[]   // One-to-many with Order
+  reviews       Review[]  // One-to-many with Review
+  cart          Cart?     // One-to-one with Cart
+  location      Location? // One-to-one with Location
+  notifications Notification[] // One-to-many with Notification
+}
+
+// Product model for Product Management and Search/Filter Services
+model Product {
+  id            String    @id @default(uuid())
+  name          String
+  description   String?
+  price         Float
+  categoryId    String
+  vendorId      String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  vendor        Vendor    @relation(fields: [vendorId], references: [id])
+  category      Category  @relation(fields: [categoryId], references: [id])
+  shops         Shop[]    // Many-to-many with Shop
+  orderItems    OrderItem[] // One-to-many with OrderItem
+  reviews       Review[]  // One-to-many with Review
+  inventory     Inventory? // One-to-one with Inventory
+  cartItems     CartItem[] // One-to-many with CartItem
+  promotions    Promotion[] // Many-to-many with Promotion
+  @@index([name]) // For search/filter
+}
+
+// Category model for Product Management Service
+model Category {
+  id            String    @id @default(uuid())
+  name          String    @unique
+  description   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[] // One-to-many with Product
+}
+
+// Order model for Order Management Service
+model Order {
+  id            String      @id @default(uuid())
+  customerId    String
+  shopId        String
+  totalAmount   Float
+  status        OrderStatus @default(PENDING)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  shop          Shop        @relation(fields: [shopId], references: [id])
+  orderItems    OrderItem[] // One-to-many with OrderItem
+  payment       Payment?    // One-to-one with Payment
+  delivery      Delivery?   // One-to-one with Delivery
+}
+
+// OrderItem model for Order Management Service
+model OrderItem {
+  id            String    @id @default(uuid())
+  orderId       String
+  productId     String
+  quantity      Int
+  unitPrice     Float
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  order         Order     @relation(fields: [orderId], references: [id])
+  product       Product   @relation(fields: [productId], references: [id])
+}
+
+// Inventory model for Inventory Management Service
 model Inventory {
-  id         String   @id @default(uuid())
-  vendorId   String
-  menuItemId String?
-  name       String
-  quantity   Float
-  unit       String
-  lowStockThreshold Float?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  // Relationships
-  vendor     Vendor   @relation(fields: [vendorId], references: [id])
-  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id])
+  id            String    @id @default(uuid())
+  productId     String @unique
+  shopId        String
+  stock         Int
+  lastUpdated   DateTime  @default(now())
+  product       Product   @relation(fields: [productId], references: [id])
+  shop          Shop      @relation(fields: [shopId], references: [id])
+  @@unique([productId, shopId]) // Ensure one inventory record per product per shop
 }
 
-// Notification Service
-model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  type      String
-  message   String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id])
+// Payment model for Payment Integration Service
+model Payment {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  amount        Float
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String // e.g., CREDIT_CARD, PAYPAL
+  transactionId String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  order         Order         @relation(fields: [orderId], references: [id])
 }
 
-// Review and Rating Service
+// Review model for Review and Rating Service
 model Review {
-  id        String   @id @default(uuid())
-  userId    String
-  shopId    String
-  rating    Int
-  comment   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id])
-  shop      Shop     @relation(fields: [shopId], references: [id])
+  id            String    @id @default(uuid())
+  productId     String?
+  shopId        String?
+  customerId    String
+  rating        Int // 1-5
+  comment       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  product       Product?  @relation(fields: [productId], references: [id])
+  shop          Shop?     @relation(fields: [shopId], references: [id])
+  customer      Customer  @relation(fields: [customerId], references: [id])
 }
 
-// Analytics Service
-model AnalyticsEvent {
-  id        String   @id @default(uuid())
-  type      String
-  payload   Json
-  createdAt DateTime @default(now())
+// Notification model for Notification Service
+model Notification {
+  id            String    @id @default(uuid())
+  customerId    String
+  title         String
+  message       String
+  isRead        Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  customer      Customer  @relation(fields: [customerId], references: [id])
 }
 
-// Location Service
+// Analytics model for Analytics Service
+model Analytics {
+  id            String    @id @default(uuid())
+  shopId        String?
+  metricType    String // e.g., SALES, VIEWS
+  value         Float
+  recordedAt    DateTime  @default(now())
+  shop          Shop?     @relation(fields: [shopId], references: [id])
+}
+
+// Delivery model for Delivery Management Service
+model Delivery {
+  id            String         @id @default(uuid())
+  orderId       String         @unique
+  status        DeliveryStatus @default(PENDING)
+  trackingCode  String?
+  estimatedTime DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  order         Order          @relation(fields: [orderId], references: [id])
+  location      Location?      // Delivery address
+}
+
+// Location model for Location Management Service
 model Location {
-  id        String   @id @default(uuid())
-  userId    String?
-  shopId    String?
-  address   String
-  coordinates Json?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  // Relationships
-  user      User?    @relation(fields: [userId], references: [id])
-  shop      Shop?    @relation(fields: [shopId], references: [id])
+  id            String    @id @default(uuid())
+  shopId        String?   @unique
+  customerId    String?   @unique
+  deliveryId    String?   @unique
+  address       String
+  city          String
+  country       String
+  postalCode    String?
+  latitude      Float? // For geolocation
+  longitude     Float? // For geolocation
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  shop          Shop?     @relation(fields: [shopId], references: [id])
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  delivery      Delivery? @relation(fields: [deliveryId], references: [id])
 }
 
-// Promotion Service
+// Cart model for Cart Management Service
+model Cart {
+  id            String    @id @default(uuid())
+  customerId    String    @unique
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  customer      Customer  @relation(fields: [customerId], references: [id])
+  cartItems     CartItem[] // One-to-many with CartItem
+}
+
+// CartItem model for Cart Management Service
+model CartItem {
+  id            String    @id @default(uuid())
+  cartId        String
+  productId     String
+  quantity      Int
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  cart          Cart      @relation(fields: [cartId], references: [id])
+  product       Product   @relation(fields: [productId], references: [id])
+}
+
+// Promotion model for Promotion and Discount Service
 model Promotion {
-  id          String   @id @default(uuid())
-  vendorId    String?
-  code        String   @unique
-  description String?
-  discount    Float
-  startDate   DateTime
-  endDate     DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  // Relationships
-  vendor      Vendor?  @relation(fields: [vendorId], references: [id])
+  id            String    @id @default(uuid())
+  vendorId      String?
+  shopId        String?
+  code          String    @unique
+  description   String?
+  discountType  String // e.g., PERCENTAGE, FIXED
+  discountValue Float
+  startDate     DateTime
+  endDate       DateTime
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  
+  vendor        Vendor?   @relation(fields: [vendorId], references: [id])
+  shop          Shop?     @relation(fields: [shopId], references: [id])
+  products      Product[] // Many-to-many with Product
 }
 
-// Admin Service
-model AdminConfig {
-  id        String   @id @default(uuid())
-  key       String   @unique
-  value     Json
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+// Configuration model for Configuration Service
+model Configuration {
+  id            String    @id @default(uuid())
+  key           String    @unique // e.g., TAX_RATE, DELIVERY_FEE
+  value         String
+  description   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
