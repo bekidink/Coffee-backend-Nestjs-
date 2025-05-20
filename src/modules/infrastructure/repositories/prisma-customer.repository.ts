@@ -15,8 +15,8 @@ export class PrismaCustomerRepository implements ICustomerRepository {
         name: customer.name,
         email: customer.email,
         password: customer.password,
-        phone: customer.phone,
-        address: customer.address,
+        
+        // addresses: customer.address,
         role: customer.role,
         createdAt: customer.createdAt,
         updatedAt: customer.updatedAt,
@@ -45,8 +45,8 @@ export class PrismaCustomerRepository implements ICustomerRepository {
       where: { id: customer.id },
       data: {
         name: customer.name,
-        phone: customer.phone,
-        address: customer.address,
+        // phone: customer.phone,
+        // address: customer.address,
         updatedAt: customer.updatedAt,
       },
     });

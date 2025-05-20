@@ -3,7 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { OrderItem } from './order-item.entity';
 
 export class Order {
-  private constructor(
+  public constructor(
     public readonly id: string,
     public customerId: string,
     public shopId: string,
@@ -11,7 +11,7 @@ export class Order {
     public status:
       | 'PENDING'
       | 'CONFIRMED'
-      | 'SHIPPED'
+      
       | 'DELIVERED'
       | 'CANCELLED',
     public createdAt: Date,
@@ -25,7 +25,7 @@ export class Order {
     shopId: string;
     totalAmount: number;
     orderItems: OrderItem[];
-    status?: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+    status?: 'PENDING' | 'CONFIRMED'  | 'DELIVERED' | 'CANCELLED';
   }): Order {
     return new Order(
       data.id || uuidv4(),
@@ -40,7 +40,7 @@ export class Order {
   }
 
   updateStatus(
-    status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED',
+    status: 'PENDING' | 'CONFIRMED' | 'DELIVERED' | 'CANCELLED',
   ): void {
     if (this.status === 'DELIVERED' || this.status === 'CANCELLED') {
       throw new Error('Cannot update status of delivered or cancelled order');

@@ -1,6 +1,6 @@
 // src/infrastructure/repositories/prisma-payment.repository.ts
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { IPaymentRepository } from '../../domain/repositories/payment.repository';
 import { Payment } from '../../domain/entities/payment.entity';
 
@@ -21,22 +21,52 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         updatedAt: payment.updatedAt,
       },
     });
-    return Payment.create(data);
+    return Payment.create({
+      id: data.id,
+      orderId: data.orderId,
+      customerId: data.customerId,
+      amount:data.amount,
+      status:data.status
+    });
   }
 
   async findById(id: string): Promise<Payment | null> {
     const data = await this.prisma.payment.findUnique({ where: { id } });
-    return data ? Payment.create(data) : null;
+    return data
+      ? Payment.create({
+          id: data.id,
+          orderId: data.orderId,
+          customerId: data.customerId,
+          amount: data.amount,
+          status: data.status,
+        })
+      : null;
   }
 
   async findByOrderId(orderId: string): Promise<Payment | null> {
     const data = await this.prisma.payment.findUnique({ where: { orderId } });
-    return data ? Payment.create(data) : null;
+    return data
+      ? Payment.create({
+          id: data.id,
+          orderId: data.orderId,
+          customerId: data.customerId,
+          amount: data.amount,
+          status: data.status,
+        })
+      : null;
   }
 
   async findByCustomerId(customerId: string): Promise<Payment[]> {
     const data = await this.prisma.payment.findMany({ where: { customerId } });
-    return data.map((item) => Payment.create(item));
+    return data.map((item) =>
+      Payment.create({
+        id: item.id,
+        orderId: item.orderId,
+        customerId: item.customerId,
+        amount: item.amount,
+        status: item.status,
+      }),
+    );
   }
 
   async update(payment: Payment): Promise<Payment> {
@@ -48,6 +78,12 @@ export class PrismaPaymentRepository implements IPaymentRepository {
         updatedAt: payment.updatedAt,
       },
     });
-    return Payment.create(data);
+    return Payment.create({
+      id: data.id,
+      orderId: data.orderId,
+      customerId: data.customerId,
+      amount: data.amount,
+      status: data.status,
+    });
   }
 }

@@ -20,27 +20,61 @@ export class PrismaReviewRepository implements IReviewRepository {
         updatedAt: review.updatedAt,
       },
     });
-    return Review.create(data);
+    return Review.create({
+      customerId:data.customerId,
+      productId:data.productId!,
+      rating:data.rating,
+      comment:data.comment!
+
+    });
   }
 
   async findById(id: string): Promise<Review | null> {
     const data = await this.prisma.review.findUnique({ where: { id } });
-    return data ? Review.create(data) : null;
+    return data
+      ? Review.create({
+          customerId: data.customerId,
+          productId: data.productId!,
+          rating: data.rating,
+          comment: data.comment!,
+        })
+      : null;
   }
 
   async findByCustomerId(customerId: string): Promise<Review[]> {
     const data = await this.prisma.review.findMany({ where: { customerId } });
-    return data.map((item) => Review.create(item));
+    return data.map((item) =>
+      Review.create({
+        customerId: item.customerId,
+        productId: item.productId!,
+        rating: item.rating,
+        comment: item.comment!,
+      }),
+    );
   }
 
   async findByProductId(productId: string): Promise<Review[]> {
     const data = await this.prisma.review.findMany({ where: { productId } });
-    return data.map((item) => Review.create(item));
+    return data.map((item) =>
+      Review.create({
+        customerId: item.customerId,
+        productId: item.productId!,
+        rating: item.rating,
+        comment: item.comment!,
+      }),
+    );
   }
 
   async findAll(): Promise<Review[]> {
     const data = await this.prisma.review.findMany();
-    return data.map((item) => Review.create(item));
+    return data.map((item) =>
+      Review.create({
+        customerId: item.customerId,
+        productId: item.productId!,
+        rating: item.rating,
+        comment: item.comment!,
+      }),
+    );
   }
 
   async update(review: Review): Promise<Review> {
@@ -52,7 +86,12 @@ export class PrismaReviewRepository implements IReviewRepository {
         updatedAt: review.updatedAt,
       },
     });
-    return Review.create(data);
+    return Review.create({
+      customerId: data.customerId,
+      productId: data.productId!,
+      rating: data.rating,
+      comment: data.comment!,
+    });
   }
 
   async delete(id: string): Promise<void> {
